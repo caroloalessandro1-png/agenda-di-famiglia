@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2459C4">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<title>Agenda di famiglia</title>
+<style>
+:root{
+  --bg:#EAF0F7; --card:#fff; --ink:#1B2430; --muted:#4B5968; --line:#C9D4E0;
+  --brand:#2459C4; --ok:#23803F; --danger:#C8283A;
+  --r:22px;
+}
+*{box-sizing:border-box}
+html{font-size:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Atkinson Hyperlegible","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:1.25rem;line-height:1.4;padding-bottom:7.5rem;-webkit-text-size-adjust:100%}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:4px solid #FFB400;outline-offset:2px}
+
+/* Testata */
+header{background:var(--brand);color:#fff;padding:1.1rem 1rem 0;position:sticky;top:0;z-index:5;
+  border-bottom:8px solid transparent;
+  border-image:linear-gradient(90deg,#C8283A 0 9%,#C8501A 9% 18%,#A85F00 18% 27%,#23803F 27% 36%,#0A7F8A 36% 45%,#2459C4 45% 54%,#7B35B8 54% 63%,#A33A8A 63% 72%,#CC3375 72% 81%,#4F5F6F 81% 90%,#6E5035 90%) 1}
+header h1{margin:0;font-size:1.9rem;line-height:1.1}
+header .oggi{margin:.2rem 0 .8rem;font-size:1.15rem;opacity:.95;text-transform:capitalize}
+.chips{display:flex;gap:.6rem;overflow-x:auto;padding-bottom:.9rem;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:3px solid #fff;background:transparent;color:#fff;border-radius:999px;
+  padding:.45rem 1.2rem;font-weight:700;font-size:1.15rem;min-height:3rem}
+.chip[aria-pressed="true"]{background:#fff;color:var(--brand)}
+
+main{max-width:46rem;margin:0 auto;padding:1rem}
+.banner{background:#FFF1C2;border:3px solid #E0A800;border-radius:var(--r);padding:.8rem 1rem;margin-bottom:1rem;font-weight:700}
+h2.gruppo{font-size:1.5rem;margin:1.6rem 0 .6rem;display:flex;align-items:center;gap:.6rem}
+h2.gruppo small{font-size:1rem;font-weight:400;color:var(--muted)}
+.gruppo.oggi{color:var(--danger)}
+
+/* Schede appuntamento */
+.card{background:var(--card);border-radius:var(--r);margin-bottom:.9rem;overflow:hidden;
+  border-left:14px solid var(--c);box-shadow:0 2px 0 rgba(27,36,48,.12)}
+.card.fatto{opacity:.62}
+.card.fatto .titolo{text-decoration:line-through}
+.head{all:unset;box-sizing:border-box;display:flex;gap:1rem;align-items:center;width:100%;padding:1rem;cursor:pointer;min-height:6rem}
+.head:focus-visible{outline:4px solid #FFB400;outline-offset:-4px}
+.ico{flex:0 0 auto;width:4.4rem;height:4.4rem;border-radius:50%;display:grid;place-items:center;
+  font-size:2.5rem;background:color-mix(in srgb,var(--c) 16%,white)}
+.txt{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.titolo{font-size:1.4rem;font-weight:800;line-height:1.2;overflow-wrap:anywhere}
+.quando{font-size:1.2rem;font-weight:700;color:var(--c);text-transform:capitalize}
+.cat{font-size:1.05rem;color:var(--muted)}
+.pill{display:inline-block;border:2px solid var(--line);border-radius:999px;padding:0 .7rem;font-weight:700;font-size:1.05rem;color:var(--ink);margin-right:.4rem}
+.more{padding:0 1rem 1rem 1rem;border-top:2px dashed var(--line);margin:0 1rem}
+.more[hidden]{display:none}
+.desc{white-space:pre-wrap;margin:.9rem 0;font-size:1.2rem}
+.luogo{display:inline-flex;align-items:center;gap:.5rem;font-weight:700;color:var(--brand);margin-bottom:.9rem;font-size:1.2rem}
+.azioni{display:flex;gap:.6rem;flex-wrap:wrap}
+.btn{border:3px solid var(--ink);background:#fff;border-radius:16px;padding:.6rem 1rem;font-weight:800;font-size:1.15rem;min-height:3.4rem;cursor:pointer}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.del{border-color:var(--danger);color:var(--danger)}
+.vuoto{text-align:center;padding:2.5rem 1rem;color:var(--muted)}
+.vuoto .grande{font-size:4rem}
+details.passati{margin-top:2rem}
+details.passati summary{font-size:1.3rem;font-weight:800;cursor:pointer;padding:.8rem 0;min-height:3.4rem}
+
+/* Pulsante grande in basso */
+.nuovo{position:fixed;left:0;right:0;bottom:0;padding:.8rem 1rem calc(.8rem + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent,var(--bg) 35%);display:flex;justify-content:center;z-index:6}
+.nuovo button{width:100%;max-width:44rem;background:var(--ok);color:#fff;border:0;border-radius:22px;
+  font-size:1.6rem;font-weight:800;min-height:4.6rem;box-shadow:0 4px 0 #166030;cursor:pointer}
+.nuovo button:active{transform:translateY(3px);box-shadow:0 1px 0 #166030}
+
+/* Modulo */
+dialog{border:0;padding:0;width:100%;max-width:40rem;height:100%;max-height:100%;margin:0 auto;background:var(--bg)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+form{display:flex;flex-direction:column;min-height:100%}
+.fh{background:var(--c,#2459C4);color:#fff;padding:1rem;display:flex;align-items:center;gap:1rem;transition:background .2s}
+.fh .ico{background:rgba(255,255,255,.95);width:4.6rem;height:4.6rem}
+.fh h3{margin:0;font-size:1.6rem;line-height:1.15}
+.fb{padding:1rem;display:flex;flex-direction:column;gap:1.1rem;flex:1}
+label,.lab{font-weight:800;font-size:1.2rem;display:block;margin-bottom:.35rem}
+.campo{width:100%;border:3px solid var(--ink);border-radius:16px;background:#fff;padding:.7rem 1rem;min-height:3.8rem;font-size:1.3rem}
+select.campo{font-weight:800;appearance:auto}
+textarea.campo{min-height:8rem;resize:vertical}
+.riga{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+@media (max-width:26rem){.riga{grid-template-columns:1fr}}
+.persone{display:flex;gap:.6rem;flex-wrap:wrap}
+.persone input{position:absolute;opacity:0;pointer-events:none}
+.persone label{margin:0;border:3px solid var(--ink);background:#fff;border-radius:999px;padding:.5rem 1.3rem;min-height:3.4rem;display:flex;align-items:center;cursor:pointer}
+.persone input:checked+label{background:var(--ink);color:#fff}
+.persone input:focus-visible+label{outline:4px solid #FFB400;outline-offset:2px}
+.ff{position:sticky;bottom:0;background:var(--bg);padding:.8rem 1rem calc(.8rem + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 2fr;gap:.8rem;border-top:3px solid var(--line)}
+.ff .btn{min-height:4.2rem;font-size:1.35rem}
+#toast{position:fixed;left:50%;bottom:7rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.9rem 1.4rem;border-radius:16px;font-weight:700;z-index:20;max-width:90%;text-align:center}
+#toast[hidden]{display:none}
+#pin dialog,dialog#pin{height:auto;max-height:90%;margin:auto;border-radius:var(--r);padding:1.2rem;max-width:26rem}
+.push{background:#fff;border:3px solid var(--brand);border-radius:var(--r);padding:1rem;margin-bottom:1rem}
+.push p{margin:0 0 .7rem}
+.push .btn{width:100%;background:var(--brand);border-color:var(--brand);color:#fff;font-size:1.3rem;min-height:4rem}
+.push.on{border-color:var(--line);display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;margin:2rem 0 0}
+.push.on p{margin:0;font-weight:700}
+.push.on .btn{width:auto;background:#fff;color:var(--ink);border-color:var(--ink);font-size:1.05rem;min-height:3rem}
+.push.avviso{border-color:#E0A800;background:#FFF1C2}
+#whoDlg{height:auto;max-height:90%;margin:auto;border-radius:var(--r);padding:1.2rem;max-width:26rem}
+#whoDlg .btn{display:block;width:100%;margin-top:.7rem;min-height:4rem;font-size:1.3rem}
+#whoDlg p{margin:0;font-weight:800;font-size:1.3rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Agenda di famiglia</h1>
+  <p class="oggi" id="oggi"></p>
+  <div class="chips" id="chips" role="group" aria-label="Di chi sono gli appuntamenti"></div>
+</header>
+
+<main id="main"></main>
+
+<div class="nuovo"><button type="button" id="btnNuovo">➕ Nuovo appuntamento</button></div>
+
+<dialog id="dlg">
+  <form id="form" method="dialog" novalidate>
+    <div class="fh" id="fh">
+      <span class="ico" id="fIco" aria-hidden="true">📌</span>
+      <h3 id="fTit">Nuovo appuntamento</h3>
+    </div>
+    <div class="fb">
+      <div>
+        <label for="fCat">Che cosa devi segnare?</label>
+        <select id="fCat" class="campo"></select>
+      </div>
+      <div>
+        <label for="fTitle">Titolo</label>
+        <input id="fTitle" class="campo" type="text" maxlength="120" autocomplete="off">
+      </div>
+      <div>
+        <span class="lab" id="lblWho">Per chi è?</span>
+        <div class="persone" id="fWho" role="radiogroup" aria-labelledby="lblWho"></div>
+      </div>
+      <div class="riga">
+        <div><label for="fDate">Giorno</label><input id="fDate" class="campo" type="date" required></div>
+        <div><label for="fTime">Ora (facoltativa)</label><input id="fTime" class="campo" type="time"></div>
+      </div>
+      <div>
+        <label for="fPlace">Dove</label>
+        <input id="fPlace" class="campo" type="text" maxlength="200" placeholder="Es. Ospedale, via Roma 10, Padova" autocomplete="off">
+      </div>
+      <div>
+        <label for="fDesc">Descrizione</label>
+        <textarea id="fDesc" class="campo" maxlength="2000"></textarea>
+      </div>
+    </div>
+    <div class="ff">
+      <button type="button" class="btn" id="fAnnulla">Annulla</button>
+      <button type="submit" class="btn ok" id="fSalva">💾 Salva</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pin">
+  <form method="dialog" id="pinForm" style="min-height:0">
+    <label for="pinIn">Inserisci il PIN di famiglia</label>
+    <input id="pinIn" class="campo" type="password" inputmode="numeric" autocomplete="off">
+    <div style="margin-top:1rem"><button class="btn ok" style="width:100%" type="submit">Entra</button></div>
+  </form>
+</dialog>
+
+<dialog id="whoDlg">
+  <p>Di chi vuoi ricevere i promemoria su questo telefono?</p>
+  <div id="whoBtns"></div>
+  <button type="button" class="btn" id="whoAnnulla">Annulla</button>
+</dialog>
+
+<div id="toast" role="status" hidden></div>
+
+<script>
+const CATS = {
+  visita:      {label:'Visita medica',        icon:'🩺', color:'#C8283A', ph:'Es. Visita dal cardiologo', hint:'Es. portare impegnativa, tessera sanitaria e gli esami già fatti.'},
+  esami:       {label:'Esami e analisi',      icon:'🧪', color:'#7B35B8', ph:'Es. Analisi del sangue',    hint:'Es. venire a digiuno dalla sera prima.'},
+  farmaci:     {label:'Medicine',             icon:'💊', color:'#0A7F8A', ph:'Es. Ritirare le medicine',  hint:'Es. nome della medicina e quando prenderla.'},
+  pagamenti:   {label:'Pagamenti e bollette', icon:'💶', color:'#23803F', ph:'Es. Bolletta della luce',   hint:'Es. importo, a chi pagare, dove si paga.'},
+  banca:       {label:'Banca e Posta',        icon:'🏦', color:'#2459C4', ph:'Es. Andare in banca',       hint:'Es. portare documento e codice fiscale.'},
+  documenti:   {label:'Documenti e scadenze', icon:'📄', color:'#A85F00', ph:'Es. Rinnovo carta d\u2019identità', hint:'Es. cosa serve portare e dove andare.'},
+  famiglia:    {label:'Famiglia e amici',     icon:'👨‍👩‍👧', color:'#CC3375', ph:'Es. Pranzo dai nonni',      hint:'Es. chi viene a prendervi e a che ora.'},
+  commissioni: {label:'Spesa e commissioni',  icon:'🛒', color:'#C8501A', ph:'Es. Fare la spesa',         hint:'Es. cosa comprare.'},
+  compleanno:  {label:'Compleanni e feste',   icon:'🎂', color:'#A33A8A', ph:'Es. Compleanno di Marco',   hint:'Es. regalo da comprare.'},
+  casa:        {label:'Casa e auto',          icon:'🔧', color:'#4F5F6F', ph:'Es. Revisione dell\u2019auto',  hint:'Es. chi deve venire e quando.'},
+  altro:       {label:'Altro',                icon:'📌', color:'#6E5035', ph:'Scrivi qui il titolo',      hint:'Scrivi qui i dettagli.'}
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const fmtDay = s => parse(s).toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+
+let pushSt = 'off', events = [], people = [], filter = 'Tutti', pin = '', pinRequired = false, offline = false, editingId = null, openId = null;
+try { pin = localStorage.getItem('pin') || ''; } catch(e){}
+
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,3500); }
+
+async function api(path, opts={}){
+  const res = await fetch(path, {...opts, headers:{'Content-Type':'application/json','X-Pin':pin, ...(opts.headers||{})}});
+  if (res.status === 401) { const e = new Error('pin'); e.pin = true; throw e; }
+  if (!res.ok) throw new Error('http ' + res.status);
+  return res.json();
+}
+
+async function askPin(){
+  return new Promise(resolve => {
+    const d = $('pin'); $('pinIn').value = ''; d.showModal(); $('pinIn').focus();
+    $('pinForm').onsubmit = () => { pin = $('pinIn').value.trim(); try{localStorage.setItem('pin',pin);}catch(e){} resolve(); };
+  });
+}
+
+async function load(){
+  try {
+    events = await api('/api/events');
+    try { localStorage.setItem('cache', JSON.stringify(events)); } catch(e){}
+    offline = false;
+  } catch(e) {
+    if (e.pin) { await askPin(); return load(); }
+    offline = true;
+    try { events = JSON.parse(localStorage.getItem('cache') || '[]'); } catch(_) { events = []; }
+  }
+  render();
+}
+
+function sortKey(e){ return e.date + ' ' + (e.time || '00:00'); }
+
+function cardHTML(e){
+  const c = CATS[e.cat] || CATS.altro;
+  const when = fmtDay(e.date) + (e.time ? `, ore ${e.time}` : '');
+  const open = openId === e.id;
+  const who = e.who ? `<span class="pill">${esc(e.who)}</span>` : '';
+  const map = e.place ? `<a class="luogo" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(e.place)}">📍 ${esc(e.place)} (apri mappa)</a>` : '';
+  return `<article class="card ${e.done?'fatto':''}" style="--c:${c.color}" data-id="${e.id}">
+    <button class="head" type="button" aria-expanded="${open}" data-toggle="${e.id}">
+      <span class="ico" aria-hidden="true">${c.icon}</span>
+      <span class="txt">
+        <span class="titolo">${esc(e.title || c.label)}</span>
+        <span class="quando">${esc(when)}</span>
+        <span class="cat">${who}${esc(c.label)}${e.done?' – fatto ✅':''}</span>
+      </span>
+    </button>
+    <div class="more" ${open?'':'hidden'}>
+      ${e.desc ? `<p class="desc">${esc(e.desc)}</p>` : ''}
+      ${map}
+      <div class="azioni">
+        <button class="btn ok" type="button" data-done="${e.id}">${e.done?'↩️ Da fare':'✅ Fatto'}</button>
+        <button class="btn" type="button" data-edit="${e.id}">✏️ Modifica</button>
+        <button class="btn del" type="button" data-del="${e.id}">🗑️ Elimina</button>
+      </div>
+    </div>
+  </article>`;
+}
+
+function render(){
+  const now = new Date(), today = iso(now), tomorrow = iso(addDays(now,1)), week = iso(addDays(now,6));
+  $('oggi').textContent = now.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  $('chips').innerHTML = ['Tutti', ...people].map(p =>
+    `<button class="chip" type="button" aria-pressed="${p===filter}" data-who="${esc(p)}">${esc(p)}</button>`).join('');
+
+  const list = events.filter(e => filter==='Tutti' || e.who===filter || e.who==='Tutti' || !e.who).sort((a,b)=>sortKey(a).localeCompare(sortKey(b)));
+  const groups = [
+    {t:'Oggi', cls:'oggi', items:list.filter(e=>e.date===today)},
+    {t:'Domani', items:list.filter(e=>e.date===tomorrow)},
+    {t:'Questa settimana', items:list.filter(e=>e.date>tomorrow && e.date<=week)},
+    {t:'Più avanti', items:list.filter(e=>e.date>week)},
+  ];
+  const past = list.filter(e=>e.date<today).reverse();
+
+  let html = '';
+  if (pushSt === 'off') html += `<div class="push"><p><strong>Vuoi ricevere un avviso prima di ogni appuntamento?</strong></p><button class="btn" type="button" data-push="on">🔔 Attiva i promemoria</button></div>`;
+  if (pushSt === 'denied') html += `<div class="push avviso"><p><strong>Le notifiche sono bloccate.</strong> Apri Chrome → ⋮ → Impostazioni → Impostazioni sito → Notifiche e consenti questo sito.</p></div>`;
+  if (pushSt === 'insecure') html += `<div class="push avviso"><p><strong>Per i promemoria serve l’indirizzo sicuro (https).</strong> Apri l’agenda dall’indirizzo con il lucchetto.</p></div>`;
+  html += offline ? '<div class="banner">📡 Niente connessione: vedi l’ultimo elenco salvato. Per aggiungere o cambiare serve internet.</div>' : '';
+  const anyFuture = groups.some(g=>g.items.length);
+  if (!anyFuture) html += `<div class="vuoto"><div class="grande">🗓️</div><p>Nessun appuntamento in programma.<br>Premi il pulsante verde per aggiungerne uno.</p></div>`;
+  for (const g of groups) if (g.items.length)
+    html += `<h2 class="gruppo ${g.cls||''}">${g.t}</h2>` + g.items.map(cardHTML).join('');
+  if (pushSt === 'on') html += `<div class="push on"><p>🔔 Promemoria attivi su questo telefono</p><button class="btn" type="button" data-push="off">Disattiva</button></div>`;
+  if (past.length) html += `<details class="passati"><summary>Appuntamenti passati (${past.length})</summary>${past.map(cardHTML).join('')}</details>`;
+  $('main').innerHTML = html;
+}
+
+/* Modulo */
+function fillCats(){
+  $('fCat').innerHTML = Object.entries(CATS).map(([k,c]) => `<option value="${k}">${c.icon}  ${c.label}</option>`).join('');
+}
+function fillWho(val){
+  const opts = [...people, 'Tutti'];
+  $('fWho').innerHTML = opts.map((p,i) =>
+    `<input type="radio" name="who" id="w${i}" value="${esc(p)}" ${p===val?'checked':''}><label for="w${i}">${esc(p)}</label>`).join('');
+}
+function applyCat(){
+  const c = CATS[$('fCat').value];
+  $('fh').style.setProperty('--c', c.color);
+  $('fIco').textContent = c.icon;
+  $('fTitle').placeholder = c.ph;
+  $('fDesc').placeholder = c.hint;
+}
+function openForm(ev){
+  editingId = ev ? ev.id : null;
+  $('fTit').textContent = ev ? 'Modifica appuntamento' : 'Nuovo appuntamento';
+  $('fCat').value = ev ? ev.cat : 'visita';
+  $('fTitle').value = ev ? ev.title : '';
+  fillWho(ev ? (ev.who || 'Tutti') : (filter !== 'Tutti' ? filter : 'Tutti'));
+  $('fDate').value = ev ? ev.date : iso(new Date());
+  $('fTime').value = ev ? ev.time : '';
+  $('fPlace').value = ev ? ev.place : '';
+  $('fDesc').value = ev ? ev.desc : '';
+  applyCat();
+  $('dlg').showModal();
+}
+async function saveForm(e){
+  e.preventDefault();
+  if (!$('fDate').value) { toast('Scegli il giorno'); $('fDate').focus(); return; }
+  const who = (document.querySelector('input[name=who]:checked') || {}).value || 'Tutti';
+  const body = { cat:$('fCat').value, title:$('fTitle').value, who, date:$('fDate').value, time:$('fTime').value, place:$('fPlace').value, desc:$('fDesc').value };
+  try {
+    if (editingId) { const old = events.find(x=>x.id===editingId); await api('/api/events/'+editingId, {method:'PUT', body:JSON.stringify({...body, done: old ? old.done : false})}); }
+    else await api('/api/events', {method:'POST', body:JSON.stringify(body)});
+    $('dlg').close(); toast('Salvato ✅'); await load();
+  } catch(err) { toast('Non sono riuscito a salvare. Controlla la connessione.'); }
+}
+
+/* Eventi */
+$('btnNuovo').onclick = () => openForm(null);
+$('fAnnulla').onclick = () => $('dlg').close();
+$('fCat').onchange = applyCat;
+$('form').addEventListener('submit', saveForm);
+$('main').addEventListener('click', async ev => {
+  const t = ev.target.closest('button'); if (!t) return;
+  if (t.dataset.push === 'on') return askWho();
+  if (t.dataset.push === 'off') return disablePush();
+  if (t.dataset.toggle) { openId = openId === t.dataset.toggle ? null : t.dataset.toggle; render(); const el = document.querySelector(`[data-id="${openId}"] .head`); if (el) el.focus(); return; }
+  const id = t.dataset.done || t.dataset.edit || t.dataset.del; const e = events.find(x=>x.id===id); if (!e) return;
+  try {
+    if (t.dataset.done) { await api('/api/events/'+id, {method:'PUT', body:JSON.stringify({done:!e.done})}); await load(); }
+    else if (t.dataset.edit) openForm(e);
+    else if (t.dataset.del && confirm('Vuoi eliminare questo appuntamento?')) { await api('/api/events/'+id, {method:'DELETE'}); openId = null; toast('Eliminato'); await load(); }
+  } catch(err) { toast('Operazione non riuscita. Controlla la connessione.'); }
+});
+$('chips').addEventListener('click', ev => { const b = ev.target.closest('[data-who]'); if (b) { filter = b.dataset.who; render(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+setInterval(() => { if (!document.hidden && !$('dlg').open) load(); }, 30000);
+
+/* Promemoria (notifiche push) */
+const urlB64 = b => { const p = '='.repeat((4 - b.length % 4) % 4), r = atob((b + p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
+
+async function refreshPush(){
+  if (!window.isSecureContext || !('serviceWorker' in navigator)) pushSt = 'insecure';
+  else if (!('PushManager' in window) || !('Notification' in window)) pushSt = 'unsupported';
+  else {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      pushSt = sub ? 'on' : (Notification.permission === 'denied' ? 'denied' : 'off');
+    } catch(e) { pushSt = 'unsupported'; }
+  }
+  render();
+}
+
+function askWho(){
+  $('whoBtns').innerHTML = [...people, 'Tutti'].map(p =>
+    `<button type="button" class="btn" data-w="${esc(p)}">${p==='Tutti' ? 'Di tutti' : 'Di ' + esc(p)}</button>`).join('');
+  $('whoDlg').showModal();
+}
+$('whoBtns').addEventListener('click', e => { const b = e.target.closest('[data-w]'); if (b) { $('whoDlg').close(); enablePush(b.dataset.w); } });
+$('whoAnnulla').onclick = () => $('whoDlg').close();
+
+async function enablePush(who){
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { await refreshPush(); return; }
+    const { key } = await api('/api/push/key');
+    const reg = await navigator.serviceWorker.ready;
+    const old = await reg.pushManager.getSubscription(); if (old) await old.unsubscribe();
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64(key) });
+    await api('/api/push/subscribe', { method:'POST', body: JSON.stringify({ subscription: sub.toJSON(), who }) });
+    toast('Promemoria attivati ✅');
+  } catch(e) { toast('Non sono riuscito ad attivare i promemoria.'); }
+  await refreshPush();
+}
+async function disablePush(){
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) { await api('/api/push/unsubscribe', { method:'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); }
+    toast('Promemoria disattivati');
+  } catch(e) { toast('Operazione non riuscita.'); }
+  await refreshPush();
+}
+
+/* Avvio */
+(async () => {
+  fillCats();
+  try { const cfg = await (await fetch('/api/config')).json(); people = cfg.people; pinRequired = cfg.pin_required; }
+  catch(e) { try { people = JSON.parse(localStorage.getItem('people')||'[]'); } catch(_) {} }
+  if (!people.length) people = ['Mamma','Papà'];
+  try { localStorage.setItem('people', JSON.stringify(people)); } catch(e){}
+  await load();
+  refreshPush();
+})();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
+</body>
+</html>

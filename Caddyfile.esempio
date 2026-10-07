@@ -1,0 +1,9 @@
+# Aggiungi questo blocco al tuo Caddyfile (cambia il nome di dominio)
+
+agenda.tuodominio.it {
+	# Caddy sullo stesso server (non in Docker):
+	reverse_proxy localhost:8080
+
+	# Caddy in Docker sulla stessa rete dell'agenda: usa invece
+	# reverse_proxy agenda-famiglia:8080
+}
