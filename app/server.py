@@ -1,6 +1,5 @@
 """Agenda di famiglia - server con promemoria push."""
 import base64
-import hmac
 import json
 import mimetypes
 import os
@@ -18,7 +17,6 @@ EVENTS_FILE = os.path.join(DATA_DIR, "events.json")
 SUBS_FILE = os.path.join(DATA_DIR, "subscriptions.json")
 SENT_FILE = os.path.join(DATA_DIR, "sent.json")
 VAPID_FILE = os.path.join(DATA_DIR, "vapid_private.pem")
-PIN = os.environ.get("FAMILY_PIN", "").strip()
 PEOPLE = [p.strip() for p in os.environ.get("PEOPLE", "Mamma,Papà").split(",") if p.strip()]
 PORT = int(os.environ.get("PORT", "8080"))
 TZ = ZoneInfo(os.environ.get("TZ", "Europe/Rome"))
@@ -196,25 +194,11 @@ def scheduler():
         time.sleep(30)
 
 
-# ---------- protezione PIN ----------
-FAILS = {}
-
-
-def throttled(ip):
-    now = time.time()
-    FAILS[ip] = [t for t in FAILS.get(ip, []) if now - t < 300]
-    return len(FAILS[ip]) >= 8
-
-
 class Handler(BaseHTTPRequestHandler):
     server_version = "AgendaFamiglia"
 
     def log_message(self, fmt, *args):
         pass
-
-    def client_ip(self):
-        fwd = self.headers.get("X-Forwarded-For", "")
-        return fwd.split(",")[0].strip() if fwd else self.client_address[0]
 
     def send_json(self, code, obj):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -224,21 +208,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
-
-    def authorized(self):
-        """True se il PIN è giusto. Risponde da sola in caso contrario."""
-        if not PIN:
-            return True
-        ip = self.client_ip()
-        if throttled(ip):
-            self.send_json(429, {"error": "troppi tentativi"})
-            return False
-        if hmac.compare_digest(self.headers.get("X-Pin", ""), PIN):
-            return True
-        if self.headers.get("X-Pin"):
-            FAILS.setdefault(ip, []).append(time.time())
-        self.send_json(401, {"error": "pin"})
-        return False
 
     def read_body(self):
         try:
@@ -251,7 +220,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/api/config":
-            return self.send_json(200, {"people": PEOPLE, "pin_required": bool(PIN)})
+            return self.send_json(200, {"people": PEOPLE})
         if path == "/api/push/key":
             try:
                 return self.send_json(200, {"key": vapid_public_key()})
@@ -259,8 +228,6 @@ class Handler(BaseHTTPRequestHandler):
                 print("Errore chiave VAPID:", exc, flush=True)
                 return self.send_json(500, {"error": "vapid"})
         if path == "/api/events":
-            if not self.authorized():
-                return
             with LOCK:
                 return self.send_json(200, read_json(EVENTS_FILE, []))
         self.serve_static(path)
@@ -270,8 +237,6 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path not in ("/api/events", "/api/push/subscribe", "/api/push/unsubscribe"):
             return self.send_json(404, {"error": "not found"})
-        if not self.authorized():
-            return
         payload = self.read_body()
         if payload is None:
             return self.send_json(400, {"error": "json"})
@@ -326,8 +291,6 @@ class Handler(BaseHTTPRequestHandler):
         parts = urlparse(self.path).path.strip("/").split("/")
         if len(parts) != 3 or parts[:2] != ["api", "events"]:
             return self.send_json(404, {"error": "not found"})
-        if not self.authorized():
-            return
         payload = self.read_body()
         if payload is None:
             return self.send_json(400, {"error": "json"})
@@ -346,8 +309,6 @@ class Handler(BaseHTTPRequestHandler):
         parts = urlparse(self.path).path.strip("/").split("/")
         if len(parts) != 3 or parts[:2] != ["api", "events"]:
             return self.send_json(404, {"error": "not found"})
-        if not self.authorized():
-            return
         with LOCK:
             events = read_json(EVENTS_FILE, [])
             remaining = [e for e in events if e["id"] != parts[2]]

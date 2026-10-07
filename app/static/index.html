@@ -97,7 +97,6 @@ textarea.campo{min-height:8rem;resize:vertical}
 .ff .btn{min-height:4.2rem;font-size:1.35rem}
 #toast{position:fixed;left:50%;bottom:7rem;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.9rem 1.4rem;border-radius:16px;font-weight:700;z-index:20;max-width:90%;text-align:center}
 #toast[hidden]{display:none}
-#pin dialog,dialog#pin{height:auto;max-height:90%;margin:auto;border-radius:var(--r);padding:1.2rem;max-width:26rem}
 .push{background:#fff;border:3px solid var(--brand);border-radius:var(--r);padding:1rem;margin-bottom:1rem}
 .push p{margin:0 0 .7rem}
 .push .btn{width:100%;background:var(--brand);border-color:var(--brand);color:#fff;font-size:1.3rem;min-height:4rem}
@@ -108,6 +107,28 @@ textarea.campo{min-height:8rem;resize:vertical}
 #whoDlg{height:auto;max-height:90%;margin:auto;border-radius:var(--r);padding:1.2rem;max-width:26rem}
 #whoDlg .btn{display:block;width:100%;margin-top:.7rem;min-height:4rem;font-size:1.3rem}
 #whoDlg p{margin:0;font-weight:800;font-size:1.3rem}
+/* Schede Elenco / Calendario */
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;padding-bottom:.9rem}
+.tab{border:3px solid #fff;background:transparent;color:#fff;border-radius:16px;font-weight:800;font-size:1.2rem;min-height:3.2rem;cursor:pointer}
+.tab[aria-pressed="true"]{background:#fff;color:var(--brand)}
+
+/* Calendario */
+.cal-nav{display:grid;grid-template-columns:4rem 1fr 4rem;gap:.6rem;align-items:center;margin-bottom:.8rem}
+.cal-nav .btn{min-height:3.6rem;padding:0;font-size:1.8rem;line-height:1}
+.mese{text-align:center;font-size:1.6rem;font-weight:800;text-transform:capitalize}
+.cal-oggi{display:block;margin:0 auto .8rem;min-height:3rem;font-size:1.05rem}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.25rem}
+.cal-gg{text-align:center;font-weight:800;font-size:1rem;color:var(--muted);padding:.2rem 0}
+.cal-day{background:#fff;border:2px solid var(--line);border-radius:14px;min-height:4rem;padding:.3rem 0 .25rem;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;cursor:pointer;font-weight:800;font-size:1.25rem}
+.cal-day.oggi{border:4px solid var(--brand)}
+.cal-day[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+.cal-day.fuori{visibility:hidden}
+.dots{display:flex;gap:3px;min-height:12px;align-items:center;justify-content:center}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.dot.fatto{opacity:.35}
+.cal-day[aria-pressed="true"] .dot{box-shadow:0 0 0 2px #fff}
+.dots small{font-size:.8rem;line-height:1;font-weight:800}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -116,6 +137,10 @@ textarea.campo{min-height:8rem;resize:vertical}
   <h1>Agenda di famiglia</h1>
   <p class="oggi" id="oggi"></p>
   <div class="chips" id="chips" role="group" aria-label="Di chi sono gli appuntamenti"></div>
+  <div class="tabs" id="tabs" role="group" aria-label="Pagina">
+    <button type="button" class="tab" data-view="list">📋 Elenco</button>
+    <button type="button" class="tab" data-view="cal">📅 Calendario</button>
+  </div>
 </header>
 
 <main id="main"></main>
@@ -161,14 +186,6 @@ textarea.campo{min-height:8rem;resize:vertical}
   </form>
 </dialog>
 
-<dialog id="pin">
-  <form method="dialog" id="pinForm" style="min-height:0">
-    <label for="pinIn">Inserisci il PIN di famiglia</label>
-    <input id="pinIn" class="campo" type="password" inputmode="numeric" autocomplete="off">
-    <div style="margin-top:1rem"><button class="btn ok" style="width:100%" type="submit">Entra</button></div>
-  </form>
-</dialog>
-
 <dialog id="whoDlg">
   <p>Di chi vuoi ricevere i promemoria su questo telefono?</p>
   <div id="whoBtns"></div>
@@ -199,23 +216,17 @@ const parse = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y
 const fmtDay = s => parse(s).toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});
 const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
 
-let pushSt = 'off', events = [], people = [], filter = 'Tutti', pin = '', pinRequired = false, offline = false, editingId = null, openId = null;
-try { pin = localStorage.getItem('pin') || ''; } catch(e){}
+let pushSt = 'off', events = [], people = [], filter = 'Tutti', offline = false, editingId = null, openId = null;
+let view = location.hash === '#calendario' ? 'cal' : 'list';
+let calMonth = new Date(); calMonth.setDate(1);
+let selDay = iso(new Date());
 
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,3500); }
 
 async function api(path, opts={}){
-  const res = await fetch(path, {...opts, headers:{'Content-Type':'application/json','X-Pin':pin, ...(opts.headers||{})}});
-  if (res.status === 401) { const e = new Error('pin'); e.pin = true; throw e; }
+  const res = await fetch(path, {...opts, headers:{'Content-Type':'application/json', ...(opts.headers||{})}});
   if (!res.ok) throw new Error('http ' + res.status);
   return res.json();
-}
-
-async function askPin(){
-  return new Promise(resolve => {
-    const d = $('pin'); $('pinIn').value = ''; d.showModal(); $('pinIn').focus();
-    $('pinForm').onsubmit = () => { pin = $('pinIn').value.trim(); try{localStorage.setItem('pin',pin);}catch(e){} resolve(); };
-  });
 }
 
 async function load(){
@@ -224,7 +235,6 @@ async function load(){
     try { localStorage.setItem('cache', JSON.stringify(events)); } catch(e){}
     offline = false;
   } catch(e) {
-    if (e.pin) { await askPin(); return load(); }
     offline = true;
     try { events = JSON.parse(localStorage.getItem('cache') || '[]'); } catch(_) { events = []; }
   }
@@ -267,7 +277,10 @@ function render(){
   $('chips').innerHTML = ['Tutti', ...people].map(p =>
     `<button class="chip" type="button" aria-pressed="${p===filter}" data-who="${esc(p)}">${esc(p)}</button>`).join('');
 
+  document.querySelectorAll('#tabs .tab').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === view));
+
   const list = events.filter(e => filter==='Tutti' || e.who===filter || e.who==='Tutti' || !e.who).sort((a,b)=>sortKey(a).localeCompare(sortKey(b)));
+  if (view === 'cal') return renderCal(list, today);
   const groups = [
     {t:'Oggi', cls:'oggi', items:list.filter(e=>e.date===today)},
     {t:'Domani', items:list.filter(e=>e.date===tomorrow)},
@@ -287,6 +300,40 @@ function render(){
     html += `<h2 class="gruppo ${g.cls||''}">${g.t}</h2>` + g.items.map(cardHTML).join('');
   if (pushSt === 'on') html += `<div class="push on"><p>🔔 Promemoria attivi su questo telefono</p><button class="btn" type="button" data-push="off">Disattiva</button></div>`;
   if (past.length) html += `<details class="passati"><summary>Appuntamenti passati (${past.length})</summary>${past.map(cardHTML).join('')}</details>`;
+  $('main').innerHTML = html;
+}
+
+/* Calendario */
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+function renderCal(list, today){
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  const offset = (new Date(y, m, 1).getDay() + 6) % 7;          // la settimana parte da lunedì
+  const days = new Date(y, m + 1, 0).getDate();
+  const byDay = {};
+  for (const e of list) (byDay[e.date] = byDay[e.date] || []).push(e);
+
+  let cells = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].map(d => `<div class="cal-gg" aria-hidden="true">${d}</div>`).join('');
+  for (let i = 0; i < offset; i++) cells += '<div class="cal-day fuori"></div>';
+  for (let d = 1; d <= days; d++) {
+    const key = `${y}-${pad(m+1)}-${pad(d)}`, evs = byDay[key] || [];
+    const dots = evs.slice(0,3).map(e => `<span class="dot ${e.done?'fatto':''}" style="--c:${(CATS[e.cat]||CATS.altro).color}"></span>`).join('')
+               + (evs.length > 3 ? `<small>+${evs.length-3}</small>` : '');
+    const label = parse(key).toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'})
+                + (evs.length ? `, ${evs.length} ${evs.length===1?'appuntamento':'appuntamenti'}` : ', nessun appuntamento');
+    cells += `<button type="button" class="cal-day ${key===today?'oggi':''}" data-day="${key}" aria-pressed="${key===selDay}" aria-label="${esc(label)}"><span>${d}</span><span class="dots">${dots}</span></button>`;
+  }
+
+  const sel = byDay[selDay] || [];
+  let html = offline ? '<div class="banner">📡 Niente connessione: vedi l’ultimo elenco salvato. Per aggiungere o cambiare serve internet.</div>' : '';
+  html += `<div class="cal-nav">
+      <button type="button" class="btn" data-cal="prev" aria-label="Mese precedente">‹</button>
+      <div class="mese" aria-live="polite">${esc(calMonth.toLocaleDateString('it-IT',{month:'long',year:'numeric'}))}</div>
+      <button type="button" class="btn" data-cal="next" aria-label="Mese successivo">›</button>
+    </div>
+    <button type="button" class="btn cal-oggi" data-cal="today">Torna a oggi</button>
+    <div class="cal-grid">${cells}</div>
+    <h2 class="gruppo ${selDay===today?'oggi':''}">${esc(cap(fmtDay(selDay)))}</h2>`;
+  html += sel.length ? sel.map(cardHTML).join('') : '<div class="vuoto"><p>Nessun appuntamento in questo giorno.<br>Premi il pulsante verde per aggiungerne uno.</p></div>';
   $('main').innerHTML = html;
 }
 
@@ -312,7 +359,7 @@ function openForm(ev){
   $('fCat').value = ev ? ev.cat : 'visita';
   $('fTitle').value = ev ? ev.title : '';
   fillWho(ev ? (ev.who || 'Tutti') : (filter !== 'Tutti' ? filter : 'Tutti'));
-  $('fDate').value = ev ? ev.date : iso(new Date());
+  $('fDate').value = ev ? ev.date : (view === 'cal' ? selDay : iso(new Date()));
   $('fTime').value = ev ? ev.time : '';
   $('fPlace').value = ev ? ev.place : '';
   $('fDesc').value = ev ? ev.desc : '';
@@ -338,6 +385,12 @@ $('fCat').onchange = applyCat;
 $('form').addEventListener('submit', saveForm);
 $('main').addEventListener('click', async ev => {
   const t = ev.target.closest('button'); if (!t) return;
+  if (t.dataset.day) { selDay = t.dataset.day; render(); const b = document.querySelector(`[data-day="${selDay}"]`); if (b) b.focus({preventScroll:true}); return; }
+  if (t.dataset.cal) {
+    if (t.dataset.cal === 'today') { calMonth = new Date(); calMonth.setDate(1); selDay = iso(new Date()); }
+    else calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + (t.dataset.cal === 'next' ? 1 : -1), 1);
+    return render();
+  }
   if (t.dataset.push === 'on') return askWho();
   if (t.dataset.push === 'off') return disablePush();
   if (t.dataset.toggle) { openId = openId === t.dataset.toggle ? null : t.dataset.toggle; render(); const el = document.querySelector(`[data-id="${openId}"] .head`); if (el) el.focus(); return; }
@@ -348,6 +401,11 @@ $('main').addEventListener('click', async ev => {
     else if (t.dataset.del && confirm('Vuoi eliminare questo appuntamento?')) { await api('/api/events/'+id, {method:'DELETE'}); openId = null; toast('Eliminato'); await load(); }
   } catch(err) { toast('Operazione non riuscita. Controlla la connessione.'); }
 });
+$('tabs').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-view]'); if (!b) return;
+  location.hash = b.dataset.view === 'cal' ? 'calendario' : 'elenco';
+});
+window.addEventListener('hashchange', () => { view = location.hash === '#calendario' ? 'cal' : 'list'; openId = null; render(); window.scrollTo(0, 0); });
 $('chips').addEventListener('click', ev => { const b = ev.target.closest('[data-who]'); if (b) { filter = b.dataset.who; render(); } });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 setInterval(() => { if (!document.hidden && !$('dlg').open) load(); }, 30000);
@@ -402,7 +460,7 @@ async function disablePush(){
 /* Avvio */
 (async () => {
   fillCats();
-  try { const cfg = await (await fetch('/api/config')).json(); people = cfg.people; pinRequired = cfg.pin_required; }
+  try { const cfg = await (await fetch('/api/config')).json(); people = cfg.people; }
   catch(e) { try { people = JSON.parse(localStorage.getItem('people')||'[]'); } catch(_) {} }
   if (!people.length) people = ['Mamma','Papà'];
   try { localStorage.setItem('people', JSON.stringify(people)); } catch(e){}

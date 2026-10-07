@@ -4,7 +4,7 @@ Visite mediche, pagamenti e appuntamenti dei genitori, con promemoria sul telefo
 Un solo container. I dati stanno nella cartella `data/`.
 
 ## 1. Avvio
-1. In `docker-compose.yml` cambia `PEOPLE`, `FAMILY_PIN` e `VAPID_SUBJECT` (la tua email).
+1. In `docker-compose.yml` cambia `PEOPLE` (i nomi) e `VAPID_SUBJECT` (la tua email).
 2. `docker compose up -d --build`
 3. Controlla che funzioni: `http://IP-DEL-SERVER:8080`
 
@@ -25,8 +25,14 @@ Se non vuoi aprire il server a Internet, puoi usare Tailscale con il suo certifi
 - **Senza orario**: la sera prima alle 18:00 e la mattina stessa alle 8:00.
 Gli appuntamenti segnati ✅ Fatto non generano più avvisi. Gli orari si cambiano nel `docker-compose.yml`.
 
-## Sicurezza
-I dati sono sanitari: usa un PIN lungo. Dopo 8 PIN sbagliati lo stesso indirizzo viene bloccato per 5 minuti.
+## Accesso e sicurezza
+Non c'è nessuna password né PIN: si apre l'app e basta.
+Per questo motivo **chiunque conosca l'indirizzo può vedere l'agenda** (che contiene dati sanitari).
+Non condividere l'indirizzo e, se puoi, usa Tailscale invece di aprire il server a Internet.
+
+## Le due pagine
+- **Elenco**: gli appuntamenti raggruppati in Oggi, Domani, Questa settimana, Più avanti.
+- **Calendario**: il mese con un pallino colorato per ogni appuntamento; tocca un giorno per vederlo.
 
 ## Backup
 Copia la cartella `data/` (contiene agenda, telefoni registrati e chiave delle notifiche).

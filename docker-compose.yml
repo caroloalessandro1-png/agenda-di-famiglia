@@ -7,7 +7,6 @@ services:
       - "8080:8080"      # se Caddy è sullo stesso server puoi usare "127.0.0.1:8080:8080"
     environment:
       PEOPLE: "Mamma,Papà"            # nomi, separati da virgola
-      FAMILY_PIN: "847261"            # CAMBIALO! Meglio 6 o più cifre/lettere
       TZ: "Europe/Rome"
       VAPID_SUBJECT: "mailto:tua@email.it"   # la tua email (richiesta dal sistema di notifiche)
       # Orari dei promemoria (facoltativi):
